@@ -1,0 +1,2431 @@
+<!DOCTYPE html>
+
+<html lang="zh-Hant"><head>
+
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Blackjack 21－21 點人機對戰</title>
+<meta content="經典 21 點 Blackjack 人機對戰遊戲，支援真人擔任莊家或閒家、1~3名 AI 對手、10副牌靴、真實洗牌與切牌、五龍與S17規則。" name="description"/>
+<meta content="Blackjack 21－21 點人機對戰" property="og:title"/>
+<meta content="經典 21 點 Blackjack 人機對戰遊戲，支援真人擔任莊家或閒家、1~3名 AI 對手、10副牌靴、真實洗牌與切牌、五龍與S17規則。" property="og:description"/>
+<meta content="website" property="og:type"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<style>
+    /* CSS Reset & Casino Design System */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --felt-dark: #0a3520;
+      --felt-base: #114b2d;
+      --felt-light: #185e3a;
+      --gold-primary: #d4af37;
+      --gold-light: #f7e089;
+      --gold-dark: #aa820a;
+      --wood-dark: #2a1810;
+      --wood-rim: #3d2417;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --card-white: #ffffff;
+      --suit-red: #dc2626;
+      --suit-black: #1e293b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.4);
+      --font-display: 'Georgia', 'Times New Roman', serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 30%, #165636 0%, #0d3b24 55%, #072214 100%);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Table Rail & Felt Texture */
+    .casino-table-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      position: relative;
+    }
+
+    /* Top HUD Navigation Bar */
+    header.casino-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      background: rgba(13, 34, 20, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gold-light);
+      letter-spacing: 0.05em;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    }
+
+    .brand-title span.suit-symbol {
+      color: var(--gold-primary);
+      font-size: 1.1rem;
+    }
+
+    .hud-meta-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.875rem;
+    }
+
+    .hud-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #cbd5e1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hud-item strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .hud-item.badge-shoe {
+      background: rgba(0, 0, 0, 0.35);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .hud-item.badge-shuffle-warn {
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.4);
+      background: rgba(245, 158, 11, 0.15);
+      animation: pulse-warn 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-warn {
+      0%, 100% { opacity: 0.9; }
+      50% { opacity: 0.4; }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.825rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-icon:hover {
+      background: rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+      border-color: var(--gold-primary);
+    }
+
+    /* Casino Felt Board Layout */
+    .felt-arena {
+      flex: 1;
+      background: radial-gradient(ellipse at center 40%, rgba(26, 92, 57, 0.7) 0%, rgba(13, 59, 36, 0.95) 75%, rgba(6, 28, 17, 1) 100%);
+      border: 6px solid var(--wood-rim);
+      outline: 2px solid var(--gold-dark);
+      border-radius: 36px;
+      box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.7), 0 10px 30px rgba(0, 0, 0, 0.8);
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      min-height: 580px;
+    }
+
+    /* Table Tabletop Arc & Watermark */
+    .table-arc-line {
+      position: absolute;
+      top: 36%;
+      left: 10%;
+      right: 10%;
+      height: 180px;
+      border: 2px dashed rgba(212, 175, 55, 0.25);
+      border-bottom: none;
+      border-radius: 50% 50% 0 0;
+      pointer-events: none;
+    }
+
+    .table-felt-watermark {
+      position: absolute;
+      top: 35%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: var(--font-display);
+      text-align: center;
+      color: rgba(212, 175, 55, 0.18);
+      letter-spacing: 0.2em;
+      font-size: 1.15rem;
+      font-weight: 700;
+      pointer-events: none;
+      text-transform: uppercase;
+      line-height: 1.4;
+    }
+
+    .table-felt-watermark span {
+      display: block;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+
+    /* Dealer Station (Top Center) */
+    .dealer-station {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* Player Hand Cards Container */
+    .hand-box {
+      background: rgba(10, 35, 22, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      padding: 12px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 220px;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .hand-box.is-active {
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 25px rgba(212, 175, 55, 0.5), inset 0 0 15px rgba(212, 175, 55, 0.2);
+      transform: translateY(-3px);
+    }
+
+    .hand-box.is-human {
+      background: rgba(14, 46, 29, 0.85);
+      border-color: rgba(212, 175, 55, 0.5);
+    }
+
+    .hand-box.is-human.is-active {
+      border-color: #f7e089;
+      box-shadow: 0 0 35px rgba(247, 224, 137, 0.7), inset 0 0 20px rgba(212, 175, 55, 0.3);
+    }
+
+    .seat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+    }
+
+    .seat-title {
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .seat-title .badge-role {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      font-weight: 500;
+    }
+
+    .badge-role.you-badge {
+      background: var(--gold-primary);
+      color: #1a1a1a;
+      font-weight: 700;
+    }
+
+    .seat-score-pill {
+      font-size: 0.825rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e2e8f0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .seat-score-pill.soft {
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #93c5fd;
+    }
+
+    .cards-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 96px;
+      gap: -24px;
+      padding: 4px 6px;
+      position: relative;
+    }
+
+    /* Cards Stacking Effect */
+    .cards-row .card {
+      margin-left: -28px;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+    }
+
+    .cards-row .card:first-child {
+      margin-left: 0;
+    }
+
+    .cards-row .card:hover {
+      transform: translateY(-8px) scale(1.05);
+      z-index: 10;
+    }
+
+    /* Playing Card Visuals */
+    .card {
+      width: 64px;
+      height: 92px;
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--suit-black);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px 5px;
+      font-weight: 700;
+      flex-shrink: 0;
+      border: 1px solid #d1d5db;
+      animation: card-appear 0.25s ease-out;
+    }
+
+    @keyframes card-appear {
+      0% {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.9);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .card.suit-red {
+      color: var(--suit-red);
+    }
+
+    .card .corner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1;
+      font-size: 0.85rem;
+    }
+
+    .card .corner .corner-suit {
+      font-size: 0.7rem;
+      margin-top: 1px;
+    }
+
+    .card .corner.bottom {
+      transform: rotate(180deg);
+      align-self: flex-end;
+    }
+
+    .card .center-pip {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.45rem;
+      opacity: 0.9;
+      pointer-events: none;
+    }
+
+    /* Face-Down Card Back */
+    .card.card-back {
+      background: #1e3a8a;
+      background-image: repeating-linear-gradient(45deg, #1e3a8a, #1e3a8a 5px, #1d4ed8 5px, #1d4ed8 10px);
+      border: 2px solid #ffffff;
+      box-shadow: inset 0 0 0 2px #172554, 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .card.card-back::after {
+      content: '♠ 21 ♦';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    /* Status Result Badge (e.g., Bust, Blackjack, 5-Dragon, Win, Lose) */
+    .seat-status-tag {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      text-align: center;
+      letter-spacing: 0.03em;
+      transition: all 0.2s ease;
+    }
+
+    .status-active-turn {
+      background: rgba(212, 175, 55, 0.2);
+      border: 1px solid var(--gold-primary);
+      color: var(--gold-light);
+      animation: pulse-turn 1.4s infinite ease-in-out;
+    }
+
+    @keyframes pulse-turn {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.85; }
+    }
+
+    .status-stand {
+      background: rgba(148, 163, 184, 0.2);
+      color: #cbd5e1;
+    }
+
+    .status-bust {
+      background: rgba(239, 68, 68, 0.25);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+    }
+
+    .status-blackjack {
+      background: rgba(212, 175, 55, 0.35);
+      border: 1px solid #f7e089;
+      color: #fef08a;
+      box-shadow: 0 0 10px rgba(245, 224, 137, 0.4);
+    }
+
+    .status-dragon {
+      background: rgba(16, 185, 129, 0.3);
+      border: 1px solid #10b981;
+      color: #6ee7b7;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .status-win {
+      background: rgba(16, 185, 129, 0.3);
+      border: 1px solid #10b981;
+      color: #6ee7b7;
+    }
+
+    .status-lose {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+    }
+
+    .status-push {
+      background: rgba(148, 163, 184, 0.25);
+      border: 1px solid #94a3b8;
+      color: #e2e8f0;
+    }
+
+    /* Player Table Row (Bottom Area) */
+    .players-row {
+      display: grid;
+      gap: 16px;
+      width: 100%;
+      margin-top: 24px;
+      align-items: flex-end;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* Grid column layouts depending on player counts */
+    .players-row.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .players-row.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .players-row.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    /* Action Control Bar (Center-Bottom) */
+    .action-controls-card {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    .turn-guide-banner {
+      font-size: 0.925rem;
+      color: var(--gold-light);
+      background: rgba(15, 23, 42, 0.7);
+      padding: 6px 18px;
+      border-radius: 9999px;
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+    }
+
+    .btn-group-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .btn-action {
+      min-width: 130px;
+      padding: 12px 24px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      border-radius: 12px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.18s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    }
+
+    .btn-action:active:not(:disabled) {
+      transform: translateY(2px);
+    }
+
+    .btn-hit {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      border: 1px solid #34d399;
+    }
+
+    .btn-hit:hover:not(:disabled) {
+      background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+    }
+
+    .btn-stand {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      color: #ffffff;
+      border: 1px solid #f87171;
+    }
+
+    .btn-stand:hover:not(:disabled) {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    }
+
+    .btn-primary-gold {
+      background: linear-gradient(135deg, #d4af37 0%, #aa820a 100%);
+      color: #1a1a1a;
+      border: 1px solid #f7e089;
+      font-weight: 700;
+    }
+
+    .btn-primary-gold:hover:not(:disabled) {
+      background: linear-gradient(135deg, #f7e089 0%, #d4af37 100%);
+      box-shadow: 0 0 22px rgba(247, 224, 137, 0.6);
+    }
+
+    .btn-action:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      filter: grayscale(0.8);
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .rule-hint-text {
+      font-size: 0.775rem;
+      color: #94a3b8;
+    }
+
+    /* Live Game Event Log Drawer / Panel */
+    .game-meta-footer {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .panel-card {
+      background: rgba(13, 34, 20, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 10px 14px;
+    }
+
+    .panel-card-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--gold-light);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      letter-spacing: 0.05em;
+    }
+
+    .log-container {
+      height: 90px;
+      overflow-y: auto;
+      font-size: 0.785rem;
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding-right: 4px;
+    }
+
+    .log-container::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .log-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    .log-item {
+      line-height: 1.35;
+      padding: 1px 0;
+    }
+
+    .log-item span.time {
+      color: #64748b;
+      margin-right: 4px;
+      font-size: 0.72rem;
+    }
+
+    .stats-scoreboard {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      height: 80px;
+    }
+
+    .stat-pill {
+      text-align: center;
+    }
+
+    .stat-pill .num {
+      font-size: 1.5rem;
+      font-weight: 800;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-pill .num.win { color: #34d399; }
+    .stat-pill .num.loss { color: #f87171; }
+    .stat-pill .num.push { color: #94a3b8; }
+
+    .stat-pill .label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    /* Modals & Overlays */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+      animation: modal-fade 0.2s ease-out;
+    }
+
+    @keyframes modal-fade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      background: radial-gradient(circle at 50% 20%, #17482c 0%, #0c2d1b 100%);
+      border: 2px solid var(--gold-primary);
+      border-radius: 20px;
+      padding: 26px 30px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.3);
+      text-align: center;
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      color: var(--gold-light);
+      margin-bottom: 8px;
+    }
+
+    .modal-subtitle {
+      font-size: 0.875rem;
+      color: #cbd5e1;
+      margin-bottom: 20px;
+      line-height: 1.45;
+    }
+
+    /* Start Game Options */
+    .form-section {
+      text-align: left;
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      font-size: 0.825rem;
+      font-weight: 600;
+      color: var(--gold-light);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .choice-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .choice-btn {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #e2e8f0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    .choice-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--gold-light);
+    }
+
+    .choice-btn.selected {
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.3) 0%, rgba(170, 130, 10, 0.4) 100%);
+      border-color: var(--gold-primary);
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.3);
+    }
+
+    .specs-list {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.775rem;
+      color: #94a3b8;
+      text-align: left;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .specs-list li {
+      margin-left: 18px;
+      margin-bottom: 2px;
+    }
+
+    /* Cut Deck Slider UI */
+    .slider-box {
+      margin: 20px 0;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 18px;
+      border-radius: 12px;
+    }
+
+    .deck-cut-slider {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #334155;
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+
+    .deck-cut-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--gold-primary);
+      border: 2px solid #ffffff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.8);
+      transition: transform 0.1s ease;
+    }
+
+    .deck-cut-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .cut-preview-stats {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cut-visual-bar {
+      display: flex;
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .cut-part-a {
+      background: #3b82f6;
+      transition: width 0.1s ease;
+    }
+
+    .cut-part-b {
+      background: #f59e0b;
+      transition: width 0.1s ease;
+    }
+
+    /* Round Over Summary Modal */
+    .round-summary-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 18px 0;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .summary-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    .summary-player-name {
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 900px) {
+      .felt-arena {
+        padding: 14px 10px;
+        min-height: 520px;
+      }
+      .players-row.cols-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .cards-row .card {
+        width: 54px;
+        height: 78px;
+        margin-left: -22px;
+      }
+      .card .corner { font-size: 0.75rem; }
+      .card .center-pip { font-size: 1.15rem; }
+      .game-meta-footer {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="casino-table-wrapper">
+<!-- Top HUD Bar -->
+<header class="casino-header">
+<div class="brand-title">
+<span class="suit-symbol">♠</span>
+<span>BLACKJACK 21</span>
+<span class="suit-symbol">♦</span>
+</div>
+<div class="hud-meta-group">
+<div class="hud-item badge-shoe">
+<span>🃏 牌庫：</span>
+<strong id="hud-cards-left">520</strong>
+<span>/ 520</span>
+</div>
+<div class="hud-item">
+<span>洗牌線：</span>
+<strong>364 張 (70%)</strong>
+</div>
+<div class="hud-item badge-shuffle-warn" id="hud-shuffle-warning" style="display: none;">
+          ⚠️ 剩餘 ≤ 364 張，本局結束將洗牌
+        </div>
+</div>
+<div class="header-actions">
+<button class="btn-icon" id="btn-sound-toggle" title="切換音效">
+<span id="sound-icon">🔊</span>
+<span id="sound-text">音效開</span>
+</button>
+<button class="btn-icon" id="btn-show-rules" title="遊戲規則">
+<span>📖</span>
+<span>規則</span>
+</button>
+<button class="btn-icon" id="btn-export-html" title="下載單一 index.html 檔">
+<span>📥</span>
+<span>下載 HTML</span>
+</button>
+<button class="btn-icon" id="btn-restart-game" title="回到角色設定重新開始">
+<span>🔄</span>
+<span>重新開始</span>
+</button>
+</div>
+</header>
+<!-- Casino Felt Surface Table -->
+<main class="felt-arena">
+<div class="table-arc-line"></div>
+<div class="table-felt-watermark">
+        BLACKJACK PAYS 3 TO 2
+        <span>Dealer Must Stand on 17 and Draw to 16 · 10 Decks Shoe</span>
+</div>
+<!-- Dealer Station (Top) -->
+<section class="dealer-station">
+<div class="hand-box" id="seat-dealer">
+<div class="seat-header">
+<span class="seat-title">
+<span id="dealer-name">電腦莊家</span>
+<span class="badge-role" id="dealer-role-badge">電腦莊家</span>
+</span>
+<span class="seat-score-pill" id="dealer-score">0 點</span>
+</div>
+<div class="cards-row" id="dealer-cards"></div>
+<div class="seat-status-tag" id="dealer-status" style="display: none;"></div>
+</div>
+</section>
+<!-- Action Guidance / Operation Controls (Center) -->
+<section class="action-controls-card">
+<div class="turn-guide-banner" id="turn-guide-banner">
+<span id="guide-indicator">▶</span>
+<span id="guide-message">請先選擇角色與 AI 人數，然後開始遊戲。</span>
+</div>
+<div class="btn-group-actions" id="player-buttons-group">
+<button class="btn-action btn-hit" disabled="" id="btn-hit">
+<span>➕ 要牌 (HIT)</span>
+</button>
+<button class="btn-action btn-stand" disabled="" id="btn-stand">
+<span>✋ 停牌 (STAND)</span>
+</button>
+</div>
+<div class="rule-hint-text" id="dealer-rule-hint" style="display: none;">
+          莊家規則：16 點以下必須要牌，17 點以上必須停牌
+        </div>
+</section>
+<!-- Players Station (Bottom) -->
+<section class="players-row cols-4" id="players-arena"></section>
+</main>
+<!-- Footer: Live Event Logs & Win/Loss Statistics -->
+<footer class="game-meta-footer">
+<div class="panel-card">
+<div class="panel-card-title">
+<span>📜 遊戲歷程紀錄</span>
+<span style="font-size: 0.7rem; color: #64748b;">自動滾動最新</span>
+</div>
+<div class="log-container" id="log-list"></div>
+</div>
+<div class="panel-card">
+<div class="panel-card-title">
+<span>📊 真人戰績統計</span>
+<span id="stats-win-rate" style="font-size: 0.72rem; color: #34d399;">勝率: 0% (0局)</span>
+</div>
+<div class="stats-scoreboard">
+<div class="stat-pill">
+<div class="num win" id="stat-wins">0</div>
+<div class="label">勝利</div>
+</div>
+<div class="stat-pill">
+<div class="num loss" id="stat-losses">0</div>
+<div class="label">失敗</div>
+</div>
+<div class="stat-pill">
+<div class="num push" id="stat-ties">0</div>
+<div class="label">平手</div>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<!-- MODAL: Start Game Setup -->
+<div class="modal-overlay" id="modal-start" style="display: flex;">
+<div class="modal-content">
+<h2 class="modal-title">♠ BLACKJACK 21 ♦</h2>
+<p class="modal-subtitle">經典 10 副牌人機對戰 · 支援真人當莊家/閒家</p>
+<div class="form-section">
+<label class="form-label">1. 選擇你的角色：</label>
+<div class="choice-group">
+<button class="choice-btn selected" data-role="player" id="btn-select-player">
+            我是閒家
+          </button>
+<button class="choice-btn" data-role="dealer" id="btn-select-dealer">
+            我是莊家
+          </button>
+</div>
+</div>
+<div class="form-section">
+<label class="form-label">2. AI 玩家數量：</label>
+<div class="choice-group">
+<button class="choice-btn ai-count-opt" data-count="1">1 名 AI</button>
+<button class="choice-btn ai-count-opt" data-count="2">2 名 AI</button>
+<button class="choice-btn ai-count-opt selected" data-count="3">3 名 AI</button>
+</div>
+</div>
+<ul class="specs-list">
+<li>撲克牌規格：10 副標準撲克牌，共 520 張牌。</li>
+<li>洗牌與切牌：Fisher-Yates 隨機洗牌，由玩家親自滑動切牌。</li>
+<li>牌靴重洗：牌庫剩餘 ≤ 70% (364張) 於局後自動觸發洗牌與切牌。</li>
+<li>規則：S17 莊家軟17停牌、Natural Blackjack、五龍 (🐉 5張未爆)。</li>
+<li>本遊戲為娛樂休閒，不含任何金錢或籌碼下注。</li>
+</ul>
+<button class="btn-action btn-primary-gold" id="btn-start-game" style="width: 100%;">
+        進入洗牌與切牌
+      </button>
+</div>
+</div>
+<!-- MODAL: Cut Deck Slider -->
+<div class="modal-overlay" id="modal-cut-deck" style="display: none;">
+<div class="modal-content">
+<h2 class="modal-title">🔀 請選擇切牌位置</h2>
+<p class="modal-subtitle">10 副牌 (520 張) 已完成隨機洗牌，請拖曳滑桿選擇切牌點將牌庫二分對調。</p>
+<div class="slider-box">
+<input class="deck-cut-slider" id="deck-cut-slider" max="95" min="5" step="1" type="range" value="50"/>
+<div class="cut-preview-stats">
+<span>前半段 (A): <strong id="cut-count-a">239</strong> 張</span>
+<span id="cut-percent-label" style="color: var(--gold-primary); font-weight: 700;">46%</span>
+<span>後半段 (B): <strong id="cut-count-b">281</strong> 張</span>
+</div>
+<div class="cut-visual-bar">
+<div class="cut-part-a" id="cut-bar-a" style="width: 46%;"></div>
+<div class="cut-part-b" id="cut-bar-b" style="width: 54%;"></div>
+</div>
+</div>
+<p style="font-size: 0.775rem; color: #94a3b8; margin-bottom: 20px;">
+        切牌後牌庫順序將真實由 [A + B] 對調為 [B + A]。
+      </p>
+<button class="btn-action btn-primary-gold" id="btn-confirm-cut" style="width: 100%;">
+        確認切牌並開始發牌
+      </button>
+</div>
+</div>
+<!-- MODAL: Round Over Summary -->
+<div class="modal-overlay" id="modal-round-summary" style="display: none;">
+<div class="modal-content">
+<h2 class="modal-title">🏁 本局結束</h2>
+<p class="modal-subtitle" id="summary-main-verdict">莊家結算: 19 點 · 你的結果: ❌ 失敗</p>
+<div class="round-summary-grid" id="round-summary-list"><div class="summary-row">
+<span class="summary-player-name">
+<span>真人玩家</span>
+<span style="color: #94a3b8; font-size: 0.75rem;">(25 點)</span>
+</span>
+<span class="seat-status-tag status-lose">
+            ❌ 失敗
+          </span>
+</div><div class="summary-row">
+<span class="summary-player-name">
+<span>AI 玩家 1</span>
+<span style="color: #94a3b8; font-size: 0.75rem;">(24 點)</span>
+</span>
+<span class="seat-status-tag status-lose">
+            ❌ 失敗
+          </span>
+</div><div class="summary-row">
+<span class="summary-player-name">
+<span>AI 玩家 2</span>
+<span style="color: #94a3b8; font-size: 0.75rem;">(25 點)</span>
+</span>
+<span class="seat-status-tag status-lose">
+            ❌ 失敗
+          </span>
+</div><div class="summary-row">
+<span class="summary-player-name">
+<span>AI 玩家 3</span>
+<span style="color: #94a3b8; font-size: 0.75rem;">(19 點)</span>
+</span>
+<span class="seat-status-tag status-push">
+            🤝 平手
+          </span>
+</div></div>
+<div id="summary-reshuffle-notice" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; border-radius: 8px; padding: 10px; font-size: 0.825rem; color: #fbbf24; margin-bottom: 16px;">
+        ⚠️ 牌靴剩餘已達洗牌線 (≤ 364 張)，下一局將重新洗牌並讓您重新切牌！
+      </div>
+<div style="display: flex; gap: 12px;">
+<button class="btn-action btn-primary-gold" id="btn-next-round" style="flex: 1;">
+          再玩一局
+        </button>
+<button class="btn-action" id="btn-summary-close" style="flex: 1; background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2);">
+          檢視牌桌
+        </button>
+</div>
+</div>
+</div>
+<!-- MODAL: Rules Info -->
+<div class="modal-overlay" id="modal-rules" style="display: none;">
+<div class="modal-content" style="max-width: 540px; text-align: left;">
+<h2 class="modal-title" style="text-align: center;">📖 21點 遊戲規則與規格</h2>
+<div style="max-height: 380px; overflow-y: auto; font-size: 0.85rem; line-height: 1.6; color: #cbd5e1; padding-right: 6px;">
+<p><strong>牌靴設定：</strong>使用 10 副標準牌共 520 張，使用 Fisher-Yates 真正隨機打亂，並由真人滑動切牌（A+B 轉為 B+A）。</p>
+<br/>
+<p><strong>重新洗牌線：</strong>當剩餘牌數 ≤ 364 張（剩餘 70%）時，完成當局後會自動重新建立 520 張牌庫、重新洗牌與切牌。</p>
+<br/>
+<p><strong>點數計算：</strong>2～10 為牌面點數，J、Q、K 算 10 點，A 自動換算為 1 或 11 點（以對手牌最有利且不爆牌為原則）。A 算 11 點時為 Soft Hand。</p>
+<br/>
+<p><strong>莊家規則 (S17)：</strong>莊家 16 點以下必須要牌，17 點以上必須停牌（包含 Soft 17 停牌）。若真人擔任莊家，系統亦會強制遵守此規則限制。</p>
+<br/>
+<p><strong>特殊牌型優先順序：</strong></p>
+<ul style="margin-left: 20px; margin-top: 4px;">
+<li>第一級：特殊牌型（Natural Blackjack、五龍 🐉 持 5 張未爆）。互相比視為平手。</li>
+<li>第二級：普通點數（21 點以下依點數高低）。</li>
+<li>第三級：Bust 爆牌（超過 21 點立即判定失敗）。</li>
+</ul>
+<br/>
+<p><strong>AI 閒家策略：</strong>手牌 ≤ 11 必補；12～16 點時若莊家明牌為 2～6 停牌，若為 7～A 要牌；≥ 17 點停牌。</p>
+</div>
+<button class="btn-action btn-primary-gold" id="btn-close-rules" style="width: 100%; margin-top: 18px;">
+        關閉規則
+      </button>
+</div>
+</div>
+<!-- JAVASCRIPT GAME LOGIC (Self-Contained in single HTML) -->
+<script>
+    // ==========================================
+    // 1. Audio Synthesizer (Native Web Audio API)
+    // ==========================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggle() {
+        this.enabled = !this.enabled;
+        return this.enabled;
+      }
+
+      playCardDeal() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        // Soft card flick swoosh
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.08);
+
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      }
+
+      playCardFlip() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(450, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.07);
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.07);
+      }
+
+      playButtonClick() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.04);
+      }
+
+      playWin() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const now = this.ctx.currentTime + idx * 0.09;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        });
+      }
+
+      playBust() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.28);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.28);
+      }
+    }
+
+    const audio = new SoundEngine();
+
+    // ==========================================
+    // 2. Constants & Game Configuration
+    // ==========================================
+    const SUITS = [
+      { symbol: '♠', name: 'spade', isRed: false },
+      { symbol: '♥', name: 'heart', isRed: true },
+      { symbol: '♦', name: 'diamond', isRed: true },
+      { symbol: '♣', name: 'club', isRed: false }
+    ];
+
+    const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const TOTAL_DECKS = 10;
+    const TOTAL_CARDS = TOTAL_DECKS * 52; // 520 cards
+    const RESHUFFLE_LINE = Math.floor(TOTAL_CARDS * 0.7); // 364 cards
+
+    // ==========================================
+    // 3. Game State Machine
+    // ==========================================
+    const state = {
+      userRole: 'player', // 'player' | 'dealer'
+      aiCount: 3,         // 1, 2, or 3
+      shoe: [],           // 10 decks
+      discardPile: [],
+      dealer: null,       // Participant object
+      players: [],        // Participant array
+      activeTurnIndex: -1,// index of active player, or 'dealer'
+      phase: 'INIT',      // 'INIT', 'CUTTING', 'DEALING', 'PLAYERS_TURN', 'DEALER_TURN', 'ROUND_OVER'
+      pendingReshuffle: false,
+      stats: {
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        rounds: 0
+      },
+      logs: []
+    };
+
+    // ==========================================
+    // 4. Deck & Shoe Logic
+    // ==========================================
+    function create10DeckShoe() {
+      const shoe = [];
+      let cardId = 0;
+      for (let d = 0; d < TOTAL_DECKS; d++) {
+        for (const suit of SUITS) {
+          for (const rank of RANKS) {
+            let val = 0;
+            if (rank === 'A') val = 11;
+            else if (['J', 'Q', 'K'].includes(rank)) val = 10;
+            else val = parseInt(rank, 10);
+
+            shoe.push({
+              id: `card_${cardId++}`,
+              suit: suit.symbol,
+              suitName: suit.name,
+              isRed: suit.isRed,
+              rank: rank,
+              baseValue: val,
+              isHidden: false
+            });
+          }
+        }
+      }
+      return shoe;
+    }
+
+    // Fisher-Yates True Shuffle
+    function fisherYatesShuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+      }
+      return array;
+    }
+
+    // Cut Deck: splits at percentage index and swaps halves (A+B -> B+A)
+    function cutDeckByPercent(shoe, percent) {
+      const cutPoint = Math.round(shoe.length * (percent / 100));
+      const partA = shoe.slice(0, cutPoint);
+      const partB = shoe.slice(cutPoint);
+      return [...partB, ...partA];
+    }
+
+    // ==========================================
+    // 5. Hand Score Calculation & S17 Rules
+    // ==========================================
+    function evaluateHand(cards, ignoreHidden = false) {
+      const visibleCards = ignoreHidden ? cards.filter(c => !c.isHidden) : cards;
+      if (visibleCards.length === 0) {
+        return { total: 0, isSoft: false, isBust: false, isBlackjack: false, isFiveDragon: false };
+      }
+
+      let total = 0;
+      let aceCount = 0;
+
+      for (const card of visibleCards) {
+        if (card.rank === 'A') {
+          aceCount++;
+          total += 11;
+        } else {
+          total += card.baseValue;
+        }
+      }
+
+      // Soft adjustment: reduce Aces from 11 to 1 if busting
+      let acesUsedAs11 = aceCount;
+      while (total > 21 && acesUsedAs11 > 0) {
+        total -= 10;
+        acesUsedAs11--;
+      }
+
+      const isSoft = acesUsedAs11 > 0 && total <= 21;
+      const isBust = total > 21;
+      const isBlackjack = visibleCards.length === 2 && total === 21 && cards.length === 2;
+      const isFiveDragon = visibleCards.length >= 5 && total <= 21;
+
+      return {
+        total,
+        isSoft,
+        isBust,
+        isBlackjack,
+        isFiveDragon
+      };
+    }
+
+    // ==========================================
+    // 6. UI Logging & Audio
+    // ==========================================
+    function addLog(msg) {
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      state.logs.push({ time: timeStr, text: msg });
+
+      const logListEl = document.getElementById('log-list');
+      const itemEl = document.createElement('div');
+      itemEl.className = 'log-item';
+      itemEl.innerHTML = `<span class="time">[${timeStr}]</span> ${msg}`;
+      logListEl.appendChild(itemEl);
+      logListEl.scrollTop = logListEl.scrollHeight;
+    }
+
+    function updateHudShoeCount() {
+      const countEl = document.getElementById('hud-cards-left');
+      countEl.textContent = state.shoe.length;
+
+      const warnEl = document.getElementById('hud-shuffle-warning');
+      if (state.shoe.length <= RESHUFFLE_LINE) {
+        warnEl.style.display = 'flex';
+      } else {
+        warnEl.style.display = 'none';
+      }
+    }
+
+    // ==========================================
+    // 7. Card DOM Creation
+    // ==========================================
+    function createCardElement(card) {
+      const el = document.createElement('div');
+      if (card.isHidden) {
+        el.className = 'card card-back';
+        el.id = card.id;
+        return el;
+      }
+
+      el.className = `card ${card.isRed ? 'suit-red' : ''}`;
+      el.id = card.id;
+      el.innerHTML = `
+        <div class="corner top">
+          <span>${card.rank}</span>
+          <span class="corner-suit">${card.suit}</span>
+        </div>
+        <div class="center-pip">${card.suit}</div>
+        <div class="corner bottom">
+          <span>${card.rank}</span>
+          <span class="corner-suit">${card.suit}</span>
+        </div>
+      `;
+      return el;
+    }
+
+    // ==========================================
+    // 8. Render Table
+    // ==========================================
+    function renderTable() {
+      updateHudShoeCount();
+
+      // Render Dealer Seat
+      const dealerEl = document.getElementById('seat-dealer');
+      const dealerNameEl = document.getElementById('dealer-name');
+      const dealerBadgeEl = document.getElementById('dealer-role-badge');
+      const dealerCardsEl = document.getElementById('dealer-cards');
+      const dealerScoreEl = document.getElementById('dealer-score');
+      const dealerStatusEl = document.getElementById('dealer-status');
+
+      dealerNameEl.textContent = state.dealer.name;
+      if (state.dealer.isHuman) {
+        dealerBadgeEl.textContent = '你 (莊家)';
+        dealerBadgeEl.className = 'badge-role you-badge';
+        dealerEl.classList.add('is-human');
+      } else {
+        dealerBadgeEl.textContent = '電腦莊家';
+        dealerBadgeEl.className = 'badge-role';
+        dealerEl.classList.remove('is-human');
+      }
+
+      // Active state highlight
+      if (state.phase === 'DEALER_TURN') {
+        dealerEl.classList.add('is-active');
+      } else {
+        dealerEl.classList.remove('is-active');
+      }
+
+      // Dealer Cards
+      dealerCardsEl.innerHTML = '';
+      state.dealer.hand.forEach(c => {
+        dealerCardsEl.appendChild(createCardElement(c));
+      });
+
+      // Dealer Score: if hidden card exists, show visible score + ?
+      const hasHiddenCard = state.dealer.hand.some(c => c.isHidden);
+      const dealerEval = evaluateHand(state.dealer.hand, hasHiddenCard);
+      if (hasHiddenCard) {
+        dealerScoreEl.textContent = `${dealerEval.total} + ? 點`;
+        dealerScoreEl.className = 'seat-score-pill';
+      } else {
+        dealerScoreEl.textContent = `${dealerEval.total} 點`;
+        dealerScoreEl.className = `seat-score-pill ${dealerEval.isSoft ? 'soft' : ''}`;
+      }
+
+      // Dealer Status Tag
+      renderStatusTag(dealerStatusEl, state.dealer);
+
+      // Render Players Row
+      const playersArenaEl = document.getElementById('players-arena');
+      playersArenaEl.className = `players-row cols-${state.players.length}`;
+      playersArenaEl.innerHTML = '';
+
+      state.players.forEach((player, idx) => {
+        const seatEl = document.createElement('div');
+        seatEl.className = `hand-box ${player.isHuman ? 'is-human' : ''} ${state.activeTurnIndex === idx ? 'is-active' : ''}`;
+        seatEl.id = `seat-player-${idx}`;
+
+        const pEval = evaluateHand(player.hand);
+        const scoreText = pEval.isBust ? `${pEval.total} 點 (爆牌)` : (pEval.isSoft ? `Soft ${pEval.total} 點` : `${pEval.total} 點`);
+
+        seatEl.innerHTML = `
+          <div class="seat-header">
+            <span class="seat-title">
+              <span>${player.name}</span>
+              ${player.isHuman ? '<span class="badge-role you-badge">你</span>' : '<span class="badge-role">AI</span>'}
+            </span>
+            <span class="seat-score-pill ${pEval.isSoft ? 'soft' : ''}">${scoreText}</span>
+          </div>
+          <div class="cards-row" id="player-cards-${idx}"></div>
+          <div class="seat-status-tag" id="player-status-${idx}" style="display: none;"></div>
+        `;
+
+        const cardsRow = seatEl.querySelector(`#player-cards-${idx}`);
+        player.hand.forEach(c => cardsRow.appendChild(createCardElement(c)));
+
+        const statusTag = seatEl.querySelector(`#player-status-${idx}`);
+        renderStatusTag(statusTag, player, state.activeTurnIndex === idx);
+
+        playersArenaEl.appendChild(seatEl);
+      });
+
+      // Update Guidance & Action Buttons
+      updateActionControls();
+    }
+
+    function renderStatusTag(tagEl, participant, isCurrentTurn = false) {
+      if (isCurrentTurn) {
+        tagEl.style.display = 'inline-block';
+        tagEl.className = 'seat-status-tag status-active-turn';
+        tagEl.textContent = '▶ 行動中...';
+        return;
+      }
+
+      if (participant.status === 'BUST') {
+        tagEl.style.display = 'inline-block';
+        tagEl.className = 'seat-status-tag status-bust';
+        tagEl.textContent = '💥 爆牌 BUST';
+      } else if (participant.status === 'BLACKJACK') {
+        tagEl.style.display = 'inline-block';
+        tagEl.className = 'seat-status-tag status-blackjack';
+        tagEl.textContent = '♠ BLACKJACK';
+      } else if (participant.status === 'FIVE_DRAGON') {
+        tagEl.style.display = 'inline-block';
+        tagEl.className = 'seat-status-tag status-dragon';
+        tagEl.textContent = '🐉 五龍！';
+      } else if (participant.status === 'STAND') {
+        tagEl.style.display = 'inline-block';
+        tagEl.className = 'seat-status-tag status-stand';
+        tagEl.textContent = '✋ 已停牌';
+      } else if (participant.result) {
+        tagEl.style.display = 'inline-block';
+        if (participant.result === 'WIN') {
+          tagEl.className = 'seat-status-tag status-win';
+          tagEl.textContent = '🏆 勝利';
+        } else if (participant.result === 'LOSE') {
+          tagEl.className = 'seat-status-tag status-lose';
+          tagEl.textContent = '❌ 失敗';
+        } else if (participant.result === 'PUSH') {
+          tagEl.className = 'seat-status-tag status-push';
+          tagEl.textContent = '🤝 平手';
+        }
+      } else {
+        tagEl.style.display = 'none';
+      }
+    }
+
+    // ==========================================
+    // 9. Controls & Rules Enforcement
+    // ==========================================
+    function updateActionControls() {
+      const hitBtn = document.getElementById('btn-hit');
+      const standBtn = document.getElementById('btn-stand');
+      const guideMsg = document.getElementById('guide-message');
+      const ruleHint = document.getElementById('dealer-rule-hint');
+
+      hitBtn.disabled = true;
+      standBtn.disabled = true;
+      ruleHint.style.display = 'none';
+
+      if (state.phase === 'DEALING') {
+        guideMsg.textContent = '荷官正在發牌中……';
+        return;
+      }
+
+      if (state.phase === 'ROUND_OVER') {
+        guideMsg.textContent = '本局結算完畢，請點擊「再玩一局」或檢視牌桌。';
+        return;
+      }
+
+      // Check if it is Human Player's turn
+      if (state.phase === 'PLAYERS_TURN') {
+        const activePlayer = state.players[state.activeTurnIndex];
+        if (!activePlayer) return;
+
+        if (activePlayer.isHuman) {
+          guideMsg.textContent = '▶ 現在輪到你：請選擇「要牌」或「停牌」';
+          hitBtn.disabled = false;
+          standBtn.disabled = false;
+        } else {
+          guideMsg.textContent = `▶ ${activePlayer.name} 行動中……`;
+        }
+        return;
+      }
+
+      // Check if it is Dealer's turn
+      if (state.phase === 'DEALER_TURN') {
+        if (state.dealer.isHuman) {
+          ruleHint.style.display = 'block';
+          const dEval = evaluateHand(state.dealer.hand);
+
+          // Spec 19: Strict Casino Dealer Rules for Human Dealer:
+          // 16 or lower: Must Hit (Stand is disabled)
+          // 17 or higher: Must Stand (Hit is disabled)
+          if (dEval.total <= 16) {
+            guideMsg.textContent = `▶ 輪到你 (莊家)：目前 ${dEval.total} 點，未滿 17 點必須要牌！`;
+            hitBtn.disabled = false;
+            standBtn.disabled = true;
+          } else {
+            guideMsg.textContent = `▶ 輪到你 (莊家)：目前 ${dEval.total} 點，已達 17 點必須停牌！`;
+            hitBtn.disabled = true;
+            standBtn.disabled = false;
+          }
+        } else {
+          guideMsg.textContent = '▶ 電腦莊家依照 S17 規則行動中……';
+        }
+      }
+    }
+
+    // ==========================================
+    // 10. Dealing Flow & Turn Progression
+    // ==========================================
+    async function startRoundDealing() {
+      state.phase = 'DEALING';
+      addLog('--- 牌局開始：初始發牌 ---');
+
+      // Reset Hands and Statuses
+      state.dealer.hand = [];
+      state.dealer.status = null;
+      state.dealer.result = null;
+
+      state.players.forEach(p => {
+        p.hand = [];
+        p.status = null;
+        p.result = null;
+      });
+
+      renderTable();
+
+      // Deal 2 cards to each player, 2 to dealer (1 face down)
+      // Deal Card 1 to all players
+      for (const player of state.players) {
+        await dealCardTo(player, false);
+      }
+      // Deal Card 1 to Dealer (Face up)
+      await dealCardTo(state.dealer, false);
+
+      // Deal Card 2 to all players
+      for (const player of state.players) {
+        await dealCardTo(player, false);
+      }
+      // Deal Card 2 to Dealer (Face DOWN)
+      await dealCardTo(state.dealer, true);
+
+      // Check Natural Blackjacks for Players
+      state.players.forEach(p => {
+        const pEval = evaluateHand(p.hand);
+        if (pEval.isBlackjack) {
+          p.status = 'BLACKJACK';
+          addLog(`${p.name} 取得 ♠ Natural Blackjack！`);
+        }
+      });
+
+      // Start Players' Turns
+      state.phase = 'PLAYERS_TURN';
+      state.activeTurnIndex = 0;
+      renderTable();
+      progressToNextPlayer();
+    }
+
+    async function dealCardTo(participant, isHidden = false) {
+      if (state.shoe.length === 0) {
+        addLog('牌靴耗盡，緊急重新洗牌！');
+        state.shoe = fisherYatesShuffle(create10DeckShoe());
+      }
+
+      const card = state.shoe.pop();
+      card.isHidden = isHidden;
+      participant.hand.push(card);
+
+      audio.playCardDeal();
+      updateHudShoeCount();
+      renderTable();
+
+      if (!isHidden) {
+        addLog(`${participant.name} 取得 ${card.rank}${card.suit}`);
+      } else {
+        addLog(`${participant.name} 取得 [暗牌]`);
+      }
+
+      // Smooth visual deal delay
+      await delay(320);
+      return card;
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Progression of player turns
+    async function progressToNextPlayer() {
+      if (state.activeTurnIndex >= state.players.length) {
+        // All players done -> Move to Dealer
+        startDealerTurn();
+        return;
+      }
+
+      const current = state.players[state.activeTurnIndex];
+      renderTable();
+
+      // If current player already has Blackjack or Five Dragon, skip turn
+      if (current.status === 'BLACKJACK' || current.status === 'FIVE_DRAGON') {
+        await delay(500);
+        state.activeTurnIndex++;
+        progressToNextPlayer();
+        return;
+      }
+
+      if (current.isHuman) {
+        // Wait for human button clicks (Hit / Stand)
+        updateActionControls();
+      } else {
+        // AI Turn
+        await runAiTurn(current);
+      }
+    }
+
+    // AI Player Strategy (Spec 16)
+    async function runAiTurn(aiPlayer) {
+      addLog(`▶ ${aiPlayer.name} 思考中……`);
+      renderTable();
+      await delay(700);
+
+      // AI Decision Loop
+      while (true) {
+        const handEval = evaluateHand(aiPlayer.hand);
+
+        // Check Bust
+        if (handEval.isBust) {
+          aiPlayer.status = 'BUST';
+          addLog(`${aiPlayer.name} 總點數 ${handEval.total} 點，爆牌 Bust！`);
+          audio.playBust();
+          renderTable();
+          await delay(500);
+          break;
+        }
+
+        // Check Five Dragon
+        if (handEval.isFiveDragon) {
+          aiPlayer.status = 'FIVE_DRAGON';
+          addLog(`${aiPlayer.name} 達成 🐉 五龍！`);
+          audio.playWin();
+          renderTable();
+          await delay(500);
+          break;
+        }
+
+        // Dealer's Visible Card Value
+        const dealerUpCard = state.dealer.hand[0];
+        const upValue = dealerUpCard ? dealerUpCard.baseValue : 10;
+
+        let shouldHit = false;
+
+        // Spec 16 Logic:
+        // Hand <= 11: Hit
+        // Hand 12~16: Dealer 2~6 Stand; Dealer 7~A Hit
+        // Hand >= 17: Stand
+        if (handEval.total <= 11) {
+          shouldHit = true;
+        } else if (handEval.total >= 12 && handEval.total <= 16) {
+          if (upValue >= 2 && upValue <= 6) {
+            shouldHit = false; // Stand
+          } else {
+            shouldHit = true;  // Hit
+          }
+        } else {
+          shouldHit = false;   // Stand
+        }
+
+        if (shouldHit) {
+          addLog(`${aiPlayer.name} 選擇要牌 (HIT)`);
+          await dealCardTo(aiPlayer, false);
+          await delay(600);
+        } else {
+          aiPlayer.status = 'STAND';
+          addLog(`${aiPlayer.name} 選擇停牌 (STAND)，點數 ${handEval.total} 點`);
+          audio.playButtonClick();
+          renderTable();
+          await delay(600);
+          break;
+        }
+      }
+
+      state.activeTurnIndex++;
+      progressToNextPlayer();
+    }
+
+    // ==========================================
+    // 11. Human Player Actions
+    // ==========================================
+    async function handleHumanHit() {
+      if (state.phase === 'PLAYERS_TURN') {
+        const human = state.players[state.activeTurnIndex];
+        if (!human || !human.isHuman) return;
+
+        addLog(`你選擇要牌 (HIT)`);
+        await dealCardTo(human, false);
+
+        const hEval = evaluateHand(human.hand);
+
+        if (hEval.isBust) {
+          human.status = 'BUST';
+          addLog(`你總點數 ${hEval.total} 點，爆牌 Bust！`);
+          audio.playBust();
+          renderTable();
+          await delay(700);
+          state.activeTurnIndex++;
+          progressToNextPlayer();
+        } else if (hEval.isFiveDragon) {
+          human.status = 'FIVE_DRAGON';
+          addLog(`你達成 🐉 五龍！`);
+          audio.playWin();
+          renderTable();
+          await delay(700);
+          state.activeTurnIndex++;
+          progressToNextPlayer();
+        } else {
+          renderTable();
+        }
+      } else if (state.phase === 'DEALER_TURN' && state.dealer.isHuman) {
+        // Human is Dealer
+        addLog(`你 (莊家) 選擇要牌 (HIT)`);
+        await dealCardTo(state.dealer, false);
+
+        const dEval = evaluateHand(state.dealer.hand);
+        if (dEval.isBust) {
+          state.dealer.status = 'BUST';
+          addLog(`莊家點數 ${dEval.total} 點，爆牌 Bust！`);
+          audio.playBust();
+          renderTable();
+          await delay(700);
+          evaluateFinalRound();
+        } else if (dEval.isFiveDragon) {
+          state.dealer.status = 'FIVE_DRAGON';
+          addLog(`莊家達成 🐉 五龍！`);
+          audio.playWin();
+          renderTable();
+          await delay(700);
+          evaluateFinalRound();
+        } else {
+          renderTable();
+        }
+      }
+    }
+
+    async function handleHumanStand() {
+      if (state.phase === 'PLAYERS_TURN') {
+        const human = state.players[state.activeTurnIndex];
+        if (!human || !human.isHuman) return;
+
+        const hEval = evaluateHand(human.hand);
+        human.status = 'STAND';
+        addLog(`你選擇停牌 (STAND)，點數 ${hEval.total} 點`);
+        audio.playButtonClick();
+        renderTable();
+
+        state.activeTurnIndex++;
+        progressToNextPlayer();
+      } else if (state.phase === 'DEALER_TURN' && state.dealer.isHuman) {
+        const dEval = evaluateHand(state.dealer.hand);
+        state.dealer.status = 'STAND';
+        addLog(`你 (莊家) 停牌 (STAND)，點數 ${dEval.total} 點`);
+        audio.playButtonClick();
+        renderTable();
+        evaluateFinalRound();
+      }
+    }
+
+    // ==========================================
+    // 12. Dealer Turn (Spec 18 & 19)
+    // ==========================================
+    async function startDealerTurn() {
+      state.phase = 'DEALER_TURN';
+      state.activeTurnIndex = -1;
+
+      // 1. Reveal Hidden Card
+      const hiddenCard = state.dealer.hand.find(c => c.isHidden);
+      if (hiddenCard) {
+        hiddenCard.isHidden = false;
+        audio.playCardFlip();
+        addLog(`莊家翻開暗牌：${hiddenCard.rank}${hiddenCard.suit}`);
+      }
+      renderTable();
+      await delay(700);
+
+      // Check Dealer Natural Blackjack
+      const dEval = evaluateHand(state.dealer.hand);
+      if (dEval.isBlackjack) {
+        state.dealer.status = 'BLACKJACK';
+        addLog(`莊家首兩張為 ♠ Natural Blackjack！`);
+        renderTable();
+        await delay(600);
+        evaluateFinalRound();
+        return;
+      }
+
+      if (state.dealer.isHuman) {
+        // Human Dealer: wait for user's input with S17 constraints enforced
+        addLog('輪到你 (莊家) 行動：16 點以下必須要牌，17 點以上必須停牌');
+        updateActionControls();
+      } else {
+        // AI Dealer: Automate with S17 rules
+        await runAiDealerTurn();
+      }
+    }
+
+    async function runAiDealerTurn() {
+      while (true) {
+        const dEval = evaluateHand(state.dealer.hand);
+
+        if (dEval.isBust) {
+          state.dealer.status = 'BUST';
+          addLog(`莊家總點數 ${dEval.total} 點，爆牌 Bust！`);
+          audio.playBust();
+          renderTable();
+          await delay(600);
+          break;
+        }
+
+        if (dEval.isFiveDragon) {
+          state.dealer.status = 'FIVE_DRAGON';
+          addLog(`莊家達成 🐉 五龍！`);
+          audio.playWin();
+          renderTable();
+          await delay(600);
+          break;
+        }
+
+        // S17 Rule: Hit on <= 16; Stand on >= 17 (including Soft 17)
+        if (dEval.total <= 16) {
+          addLog(`莊家目前 ${dEval.total} 點 (≤ 16)，必須要牌`);
+          await dealCardTo(state.dealer, false);
+          await delay(700);
+        } else {
+          state.dealer.status = 'STAND';
+          addLog(`莊家目前 ${dEval.total} 點 (≥ 17)，依 S17 規則停牌`);
+          renderTable();
+          await delay(600);
+          break;
+        }
+      }
+
+      evaluateFinalRound();
+    }
+
+    // ==========================================
+    // 13. Round Evaluation & Outcome Determination
+    // ==========================================
+    function evaluateFinalRound() {
+      state.phase = 'ROUND_OVER';
+      addLog('--- 牌局結算 ---');
+
+      const dEval = evaluateHand(state.dealer.hand);
+      const summaryList = [];
+
+      state.players.forEach(p => {
+        const pEval = evaluateHand(p.hand);
+
+        // Spec 23 & 24 Rules:
+        // Tier 1: Special hands (Blackjack, Five Dragon). Special vs Special = PUSH.
+        // Tier 2: Normal points <= 21.
+        // Tier 3: Bust.
+        let result = 'LOSE';
+
+        if (pEval.isBust) {
+          // Player busts -> Always loses (even if dealer busts)
+          result = 'LOSE';
+          p.status = 'BUST';
+        } else if (dEval.isBust) {
+          // Dealer busts & Player didn't bust -> Player wins
+          result = 'WIN';
+        } else {
+          // Neither busted
+          const pIsTier1 = pEval.isBlackjack || pEval.isFiveDragon;
+          const dIsTier1 = dEval.isBlackjack || dEval.isFiveDragon;
+
+          if (pIsTier1 && !dIsTier1) {
+            result = 'WIN';
+          } else if (!pIsTier1 && dIsTier1) {
+            result = 'LOSE';
+          } else if (pIsTier1 && dIsTier1) {
+            result = 'PUSH';
+          } else {
+            // Both are normal score <= 21
+            if (pEval.total > dEval.total) {
+              result = 'WIN';
+            } else if (pEval.total < dEval.total) {
+              result = 'LOSE';
+            } else {
+              result = 'PUSH';
+            }
+          }
+        }
+
+        p.result = result;
+
+        const resultLabel = result === 'WIN' ? '🏆 勝利' : (result === 'LOSE' ? '❌ 失敗' : '🤝 平手');
+        addLog(`${p.name} (${pEval.total}點) vs 莊家 (${dEval.total}點) ➜ ${resultLabel}`);
+
+        summaryList.push({
+          player: p,
+          pEval,
+          result,
+          resultLabel
+        });
+      });
+
+      // Update Human Statistics
+      updateHumanStats(summaryList, dEval);
+
+      renderTable();
+      showRoundSummaryModal(summaryList, dEval);
+    }
+
+    function updateHumanStats(summaryList, dEval) {
+      if (state.userRole === 'player') {
+        const humanSummary = summaryList.find(s => s.player.isHuman);
+        if (humanSummary) {
+          state.stats.rounds++;
+          if (humanSummary.result === 'WIN') {
+            state.stats.wins++;
+            audio.playWin();
+          } else if (humanSummary.result === 'LOSE') {
+            state.stats.losses++;
+            audio.playBust();
+          } else {
+            state.stats.ties++;
+            audio.playButtonClick();
+          }
+        }
+      } else {
+        // Human is Dealer: Aggregate against all AI players
+        state.stats.rounds++;
+        let dealerWinsThisRound = 0;
+        let dealerLossesThisRound = 0;
+        let dealerTiesThisRound = 0;
+
+        summaryList.forEach(s => {
+          if (s.result === 'LOSE') dealerWinsThisRound++;   // AI lost, so dealer won
+          else if (s.result === 'WIN') dealerLossesThisRound++; // AI won, so dealer lost
+          else dealerTiesThisRound++;
+        });
+
+        // Track aggregate wins/losses against AI hands
+        state.stats.wins += dealerWinsThisRound;
+        state.stats.losses += dealerLossesThisRound;
+        state.stats.ties += dealerTiesThisRound;
+
+        if (dealerWinsThisRound > dealerLossesThisRound) {
+          audio.playWin();
+        } else if (dealerLossesThisRound > dealerWinsThisRound) {
+          audio.playBust();
+        } else {
+          audio.playButtonClick();
+        }
+      }
+
+      // Update UI Scoreboard
+      document.getElementById('stat-wins').textContent = state.stats.wins;
+      document.getElementById('stat-losses').textContent = state.stats.losses;
+      document.getElementById('stat-ties').textContent = state.stats.ties;
+
+      const totalDecisions = state.stats.wins + state.stats.losses + state.stats.ties;
+      const winRate = totalDecisions > 0 ? Math.round((state.stats.wins / totalDecisions) * 100) : 0;
+      document.getElementById('stats-win-rate').textContent = `勝率: ${winRate}% (${state.stats.rounds}局)`;
+    }
+
+    function showRoundSummaryModal(summaryList, dEval) {
+      const modal = document.getElementById('modal-round-summary');
+      const listEl = document.getElementById('round-summary-list');
+      const verdictEl = document.getElementById('summary-main-verdict');
+      const reshuffleNotice = document.getElementById('summary-reshuffle-notice');
+
+      listEl.innerHTML = '';
+
+      if (state.userRole === 'player') {
+        const human = summaryList.find(s => s.player.isHuman);
+        if (human) {
+          verdictEl.textContent = `莊家結算: ${dEval.total} 點 · 你的結果: ${human.resultLabel}`;
+        }
+      } else {
+        verdictEl.textContent = `你 (莊家) 結算: ${dEval.total} 點 · 各 AI 閒家結算如下：`;
+      }
+
+      summaryList.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'summary-row';
+        row.innerHTML = `
+          <span class="summary-player-name">
+            <span>${item.player.name}</span>
+            <span style="color: #94a3b8; font-size: 0.75rem;">(${item.pEval.total} 點)</span>
+          </span>
+          <span class="seat-status-tag ${item.result === 'WIN' ? 'status-win' : (item.result === 'LOSE' ? 'status-lose' : 'status-push')}">
+            ${item.resultLabel}
+          </span>
+        `;
+        listEl.appendChild(row);
+      });
+
+      // Check 70% Reshuffle Line (≤ 364 cards)
+      if (state.shoe.length <= RESHUFFLE_LINE) {
+        state.pendingReshuffle = true;
+        reshuffleNotice.style.display = 'block';
+      } else {
+        state.pendingReshuffle = false;
+        reshuffleNotice.style.display = 'none';
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    // ==========================================
+    // 14. Next Round & Reshuffle Flow
+    // ==========================================
+    function handleNextRound() {
+      document.getElementById('modal-round-summary').style.display = 'none';
+
+      if (state.pendingReshuffle || state.shoe.length <= RESHUFFLE_LINE) {
+        addLog('⚠️ 牌靴剩餘已達洗牌線 (≤ 364 張)，進行系統重新洗牌……');
+        state.pendingReshuffle = false;
+        // Re-create 10 decks & trigger cut deck
+        state.shoe = fisherYatesShuffle(create10DeckShoe());
+        openCutDeckModal();
+      } else {
+        startRoundDealing();
+      }
+    }
+
+    // ==========================================
+    // 15. Cut Deck Modal & Slider Interaction
+    // ==========================================
+    function openCutDeckModal() {
+      state.phase = 'CUTTING';
+      const modal = document.getElementById('modal-cut-deck');
+      const slider = document.getElementById('deck-cut-slider');
+      slider.value = 50;
+      updateCutDeckPreview(50);
+      modal.style.display = 'flex';
+    }
+
+    function updateCutDeckPreview(val) {
+      const total = state.shoe.length || TOTAL_CARDS;
+      const countA = Math.round(total * (val / 100));
+      const countB = total - countA;
+
+      document.getElementById('cut-count-a').textContent = countA;
+      document.getElementById('cut-count-b').textContent = countB;
+      document.getElementById('cut-percent-label').textContent = `${val}%`;
+
+      document.getElementById('cut-bar-a').style.width = `${val}%`;
+      document.getElementById('cut-bar-b').style.width = `${100 - val}%`;
+    }
+
+    function confirmCutDeck() {
+      const slider = document.getElementById('deck-cut-slider');
+      const percent = parseInt(slider.value, 10);
+
+      // Perform genuine cut: split and swap A + B -> B + A
+      state.shoe = cutDeckByPercent(state.shoe, percent);
+      addLog(`🔀 真人完成切牌：切於 ${percent}% 位置，牌庫順序已真實調換對調！`);
+      audio.playCardFlip();
+
+      document.getElementById('modal-cut-deck').style.display = 'none';
+      startRoundDealing();
+    }
+
+    // ==========================================
+    // 16. Game Initialization & Role Setup
+    // ==========================================
+    function initNewGame() {
+      // 1. Build Shoe
+      state.shoe = fisherYatesShuffle(create10DeckShoe());
+      addLog(`建立 10 副標準牌牌靴 (共 520 張)，使用 Fisher-Yates 演算法洗牌完成`);
+
+      // 2. Setup Participants based on Mode
+      if (state.userRole === 'player') {
+        state.dealer = {
+          id: 'dealer',
+          name: '電腦莊家',
+          isHuman: false,
+          hand: [],
+          status: null,
+          result: null
+        };
+
+        state.players = [];
+        // Human Player
+        state.players.push({
+          id: 'player_human',
+          name: '真人玩家',
+          isHuman: true,
+          hand: [],
+          status: null,
+          result: null
+        });
+
+        // AI Players (1 ~ 3)
+        for (let i = 1; i <= state.aiCount; i++) {
+          state.players.push({
+            id: `player_ai_${i}`,
+            name: `AI 玩家 ${i}`,
+            isHuman: false,
+            hand: [],
+            status: null,
+            result: null
+          });
+        }
+      } else {
+        // Human is Dealer
+        state.dealer = {
+          id: 'dealer',
+          name: '真人莊家',
+          isHuman: true,
+          hand: [],
+          status: null,
+          result: null
+        };
+
+        state.players = [];
+        for (let i = 1; i <= state.aiCount; i++) {
+          state.players.push({
+            id: `player_ai_${i}`,
+            name: `AI 玩家 ${i}`,
+            isHuman: false,
+            hand: [],
+            status: null,
+            result: null
+          });
+        }
+      }
+
+      renderTable();
+      openCutDeckModal();
+    }
+
+    // ==========================================
+    // 17. Single File Export (HTML Download)
+    // ==========================================
+    function exportSingleFile() {
+      audio.playButtonClick();
+
+      // Clone the document so the downloaded file always opens at the setup screen
+      // instead of preserving the current in-progress round.
+      const clone = document.documentElement.cloneNode(true);
+
+      const startModal = clone.querySelector('#modal-start');
+      if (startModal) startModal.style.display = 'flex';
+      ['#modal-cut-deck', '#modal-round-summary', '#modal-rules'].forEach(sel => {
+        const el = clone.querySelector(sel);
+        if (el) el.style.display = 'none';
+      });
+
+      const cardsLeft = clone.querySelector('#hud-cards-left');
+      if (cardsLeft) cardsLeft.textContent = '520';
+      const warning = clone.querySelector('#hud-shuffle-warning');
+      if (warning) warning.style.display = 'none';
+
+      const dealerCards = clone.querySelector('#dealer-cards');
+      if (dealerCards) dealerCards.innerHTML = '';
+      const dealerScore = clone.querySelector('#dealer-score');
+      if (dealerScore) dealerScore.textContent = '0 點';
+      const dealerStatus = clone.querySelector('#dealer-status');
+      if (dealerStatus) dealerStatus.style.display = 'none';
+      const playersArena = clone.querySelector('#players-arena');
+      if (playersArena) playersArena.innerHTML = '';
+
+      const guide = clone.querySelector('#guide-message');
+      if (guide) guide.textContent = '請先選擇角色與 AI 人數，然後開始遊戲。';
+      const logList = clone.querySelector('#log-list');
+      if (logList) logList.innerHTML = '';
+      ['#stat-wins', '#stat-losses', '#stat-ties'].forEach(sel => {
+        const el = clone.querySelector(sel);
+        if (el) el.textContent = '0';
+      });
+      const winRate = clone.querySelector('#stats-win-rate');
+      if (winRate) winRate.textContent = '勝率: 0% (0局)';
+
+      const currentHtml = '<!DOCTYPE html>\n' + clone.outerHTML;
+      const blob = new Blob([currentHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'index.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      addLog('已下載乾淨的 index.html；重新開啟會從角色選擇畫面開始。');
+    }
+
+    // ==========================================
+    // 18. DOM Event Bindings
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+      // Sound Toggle
+      const soundBtn = document.getElementById('btn-sound-toggle');
+      soundBtn.addEventListener('click', () => {
+        const isEnabled = audio.toggle();
+        document.getElementById('sound-icon').textContent = isEnabled ? '🔊' : '🔇';
+        document.getElementById('sound-text').textContent = isEnabled ? '音效開' : '靜音';
+        if (isEnabled) audio.playButtonClick();
+      });
+
+      // Role Select in Setup Modal
+      const roleBtns = [document.getElementById('btn-select-player'), document.getElementById('btn-select-dealer')];
+      roleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          audio.playButtonClick();
+          roleBtns.forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          state.userRole = btn.dataset.role;
+        });
+      });
+
+      // AI Count in Setup Modal
+      const aiCountBtns = document.querySelectorAll('.ai-count-opt');
+      aiCountBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          audio.playButtonClick();
+          aiCountBtns.forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          state.aiCount = parseInt(btn.dataset.count, 10);
+        });
+      });
+
+      // Start Game Button in Setup Modal
+      document.getElementById('btn-start-game').addEventListener('click', () => {
+        audio.playButtonClick();
+        document.getElementById('modal-start').style.display = 'none';
+        initNewGame();
+      });
+
+      // Cut Deck Slider
+      const cutSlider = document.getElementById('deck-cut-slider');
+      cutSlider.addEventListener('input', (e) => {
+        updateCutDeckPreview(parseInt(e.target.value, 10));
+      });
+
+      // Confirm Cut Deck Button
+      document.getElementById('btn-confirm-cut').addEventListener('click', () => {
+        confirmCutDeck();
+      });
+
+      // Player Action Buttons
+      document.getElementById('btn-hit').addEventListener('click', () => {
+        handleHumanHit();
+      });
+
+      document.getElementById('btn-stand').addEventListener('click', () => {
+        handleHumanStand();
+      });
+
+      // Round Summary Buttons
+      document.getElementById('btn-next-round').addEventListener('click', () => {
+        audio.playButtonClick();
+        handleNextRound();
+      });
+
+      document.getElementById('btn-summary-close').addEventListener('click', () => {
+        audio.playButtonClick();
+        document.getElementById('modal-round-summary').style.display = 'none';
+      });
+
+      // Top Actions
+      document.getElementById('btn-show-rules').addEventListener('click', () => {
+        audio.playButtonClick();
+        document.getElementById('modal-rules').style.display = 'flex';
+      });
+
+      document.getElementById('btn-close-rules').addEventListener('click', () => {
+        audio.playButtonClick();
+        document.getElementById('modal-rules').style.display = 'none';
+      });
+
+      document.getElementById('btn-export-html').addEventListener('click', () => {
+        exportSingleFile();
+      });
+
+      document.getElementById('btn-restart-game').addEventListener('click', () => {
+        audio.playButtonClick();
+        document.getElementById('modal-start').style.display = 'flex';
+      });
+    });
+  </script>
+</body></html>
